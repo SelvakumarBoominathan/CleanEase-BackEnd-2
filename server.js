@@ -89,11 +89,29 @@ dotenv.config();
 const app = express();
 
 // CORS configuration
+// app.use(
+//   cors({
+//     origin: "http://localhost:5173", // Allow frontend origin requests
+//     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow all API methods
+//     credentials: true, // Enable cookies to be sent with requests
+//   })
+// );
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "mellifluous-swan-470b44.netlify.app",
+];
 app.use(
   cors({
-    origin: "http://localhost:5173", // Allow frontend origin requests
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow all API methods
-    credentials: true, // Enable cookies to be sent with requests
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    credentials: true,
   })
 );
 
