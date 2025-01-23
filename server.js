@@ -20,6 +20,21 @@ app.use(
   })
 );
 
+// const allowedOrigins = ["http://localhost:5173", "https://my-frontend.com"];
+// app.use(
+//   cors({
+//     origin: (origin, callback) => {
+//       if (!origin || allowedOrigins.includes(origin)) {
+//         callback(null, true);
+//       } else {
+//         callback(new Error("Not allowed by CORS"));
+//       }
+//     },
+//     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+//     credentials: true,
+//   })
+// );
+
 //middleware
 app.use(express.json());
 app.use(cors());
