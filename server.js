@@ -12,14 +12,6 @@ dotenv.config();
 const app = express();
 
 // CORS configuration
-// app.use(
-//   cors({
-//     origin: "http://localhost:5173", // Allow frontend origin requests
-//     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow all API methods
-//     credentials: true, // Enable cookies to be sent with requests
-//   })
-// );
-
 const allowedOrigins = [
   "http://localhost:5173",
   "https://mellifluous-swan-470b44.netlify.app",
@@ -41,7 +33,7 @@ app.use(
 // Middleware
 app.use(express.json());
 app.use(bodyParser.json());
-app.use(morgan("tiny")); // Usage of morgan library
+app.use(morgan("tiny"));
 
 // Prevent hackers
 app.disable("x-powered-by");

@@ -437,27 +437,6 @@ export const getbookings = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Error fetching bookings!", error });
   }
-
-  // try {
-  //   const { id } = req.params;
-  //   const token = req.headers.authorization?.split(" ")[1];
-  //   if (!token) return res.status(401).json({ message: "Unauthorized" });
-
-  //   const decoded = Jwt.verify(token, process.env.JWT_SECRET);
-  //   const username = decoded.username;
-
-  //   const user = await userModel.findOne({ username });
-  //   if (!user) return res.status(404).json({ message: "User not found" });
-
-  //   user.bookings = user.bookings.filter(
-  //     (booking) => booking._id.toString() !== id
-  //   );
-  //   await user.save();
-
-  //   res.json({ message: "Booking removed successfully" });
-  // } catch (error) {
-  //   res.status(500).json({ message: "Error removing booking!", error });
-  // }
 };
 
 export const removeBooking = async (req, res) => {
