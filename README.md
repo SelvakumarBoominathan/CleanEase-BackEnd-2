@@ -102,9 +102,11 @@
    - Create a `.env` file in the root directory.
    - Add the following variables:
      ```env
-     PORT=5000
-     MONGO_URI=<your-mongo-database-url>
+     PORT=8000
+     ATLAS_URI=<your-mongo-database-url>
      JWT_SECRET=<your-jwt-secret>
+     EMAIL=<Your Email>
+     PASSWORD=<Password>
      ```
 
 4. **Run the Server**:
