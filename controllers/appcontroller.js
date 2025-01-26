@@ -119,8 +119,8 @@ export const registermail = async (req, res) => {
     const config = {
       service: "gmail",
       auth: {
-        user: ENV.Email,
-        pass: ENV.Password,
+        user: ENV.EMAIL,
+        pass: ENV.PASSWORD,
       },
     };
 
@@ -128,7 +128,7 @@ export const registermail = async (req, res) => {
 
     // Object to send mail
     const message = {
-      from: `"CleanEase" <${ENV.Email}>`, // sender address
+      from: `"CleanEase" <${ENV.EMAIL}>`, // sender address
       to: email, // list of receivers
       subject: "OTP Verification", // Subject line
       html: `<b>Your OTP is <h1>${otp}</h1></b>`, //html body
