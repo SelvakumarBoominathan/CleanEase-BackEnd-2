@@ -115,45 +115,21 @@ export const registermail = async (req, res) => {
       return res.status(400).send({ error: "OTP is not generated" });
     }
 
-    // Email configuration
-    // const config = {
-    //   service: "gmail",
-    //   auth: {
-    //     user: ENV.EMAIL,
-    //     pass: ENV.PASSWORD,
-    //   },
-    // };
-
     const config = {
       host: "smtp.gmail.com",
       port: 587, // Use 465 for SSL or 587 for TLS
       secure: false, // True for SSL, false for TLS
       auth: {
-        user: ENV.EMAIL,
-        pass: ENV.PASSWORD,
+        user: ENV.Email,
+        pass: ENV.password,
       },
     };
-
-    // const config = {
-    //   host: "smtp.gmail.com",
-    //   port: 587,
-    //   secure: false,
-    //   auth: {
-    //     user: "msofficeacc5@gmail.com",
-    //     pass: "koghcirdjxfwroaq",
-    //   },
-    // };
-
-    // console.log("Email Config:", {
-    //   user: ENV.EMAIL || "Missing Email",
-    //   pass: ENV.PASSWORD ? "Password Set" : "Missing Password",
-    // });
 
     const transporter = nodemailer.createTransport(config);
 
     // Object to send mail
     const message = {
-      from: `"CleanEase" <${ENV.EMAIL}>`, // sender address
+      from: `"CleanEase" <${ENV.Email}>`, // sender address
       to: email, // list of receivers
       subject: "OTP Verification", // Subject line
       html: `<b>Your OTP is <h1>${otp}</h1></b>`, //html body
