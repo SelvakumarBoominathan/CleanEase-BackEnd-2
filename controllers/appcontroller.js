@@ -116,13 +116,28 @@ export const registermail = async (req, res) => {
     }
 
     // Email configuration
+    // const config = {
+    //   service: "gmail",
+    //   auth: {
+    //     user: ENV.EMAIL,
+    //     pass: ENV.PASSWORD,
+    //   },
+    // };
+
     const config = {
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587, // Use 465 for SSL or 587 for TLS
+      secure: false, // True for SSL, false for TLS
       auth: {
         user: ENV.EMAIL,
         pass: ENV.PASSWORD,
       },
     };
+
+    console.log("Email Config:", {
+      user: ENV.EMAIL || "Missing Email",
+      pass: ENV.PASSWORD ? "Password Set" : "Missing Password",
+    });
 
     const transporter = nodemailer.createTransport(config);
 
