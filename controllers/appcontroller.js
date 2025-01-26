@@ -124,25 +124,25 @@ export const registermail = async (req, res) => {
     //   },
     // };
 
-    // const config = {
-    //   host: "smtp.gmail.com",
-    //   port: 587, // Use 465 for SSL or 587 for TLS
-    //   secure: false, // True for SSL, false for TLS
-    //   auth: {
-    //     user: ENV.EMAIL,
-    //     pass: ENV.PASSWORD,
-    //   },
-    // };
-
     const config = {
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
+      port: 587, // Use 465 for SSL or 587 for TLS
+      secure: false, // True for SSL, false for TLS
       auth: {
-        user: "msofficeacc5@gmail.com",
-        pass: "koghcirdjxfwroaq",
+        user: ENV.EMAIL,
+        pass: ENV.PASSWORD,
       },
     };
+
+    // const config = {
+    //   host: "smtp.gmail.com",
+    //   port: 587,
+    //   secure: false,
+    //   auth: {
+    //     user: "msofficeacc5@gmail.com",
+    //     pass: "koghcirdjxfwroaq",
+    //   },
+    // };
 
     // console.log("Email Config:", {
     //   user: ENV.EMAIL || "Missing Email",
