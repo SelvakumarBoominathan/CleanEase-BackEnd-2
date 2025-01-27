@@ -170,7 +170,7 @@ export async function verifyOTP(req, res) {
     //reset OTP value
     otpStore.auth_otp = null;
     req.app.locals.resetSession = true;
-    console.log(req.app.locals.resetSession);
+    // console.log(req.app.locals.resetSession);
 
     return res.status(201).send({ msg: "OTP verified!" });
   }
@@ -199,7 +199,7 @@ export async function getUser(req, res) {
 // GET method for creating resetsession
 // http://localhost:8000/api/createResetSession
 export async function createResetSession(req, res, next) {
-  console.log(req.app.locals.resetSession);
+  // console.log(req.app.locals.resetSession);
   if (req.app.locals.resetSession) {
     req.app.locals.resetSession = false; // this will create a reset session only once
     // return res.status(201).send({ msg: "Access granted" });
@@ -215,7 +215,7 @@ export async function resetPassword(req, res) {
 
     // Find user by username
     const user = await UserModel.findOne({ username });
-    console.log(user);
+    // console.log(user);
     if (!user) {
       return res.status(404).send({ error: "username not found" });
     }

@@ -19,5 +19,5 @@ export async function localVariables(req, res, next) {
     res.status(500).send({ error: error.message });
   }
 }
-console.log(otpStore.auth_otp);
+// console.log(otpStore.auth_otp);
 export default otpStore;
