@@ -4,7 +4,7 @@ import morgan from "morgan";
 import connect from "./database/connection.js";
 import router from "./router/route.js";
 import dotenv from "dotenv";
-import bodyParser from "body-parser";
+// import bodyParser from "body-parser";
 
 dotenv.config();
 
@@ -32,7 +32,7 @@ app.use(
 
 // Middleware
 app.use(express.json());
-app.use(bodyParser.json());
+// app.use(bodyParser.json());
 app.use(morgan("tiny"));
 
 // Prevent hackers
