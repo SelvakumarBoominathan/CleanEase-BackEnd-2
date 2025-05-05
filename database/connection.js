@@ -2,7 +2,7 @@
 import mongoose from "mongoose";
 import ENV from "../config.js"; // Access environment variable for URI
 
-export const connect = async () => {
+const connect = async () => {
   try {
     mongoose.set("strictQuery", true); // Set strictQuery option
     // console.log("Connecting to MongoDB...");
@@ -18,4 +18,4 @@ export const connect = async () => {
   }
 };
 
-// export default connect;
+export default connect;
