@@ -2,7 +2,7 @@
 import mongoose from "mongoose";
 import ENV from "../config.js"; // Access environment variable for URI
 
-async function connect() {
+export const connect = async () => {
   try {
     mongoose.set("strictQuery", true); // Set strictQuery option
     // console.log("Connecting to MongoDB...");
@@ -16,6 +16,6 @@ async function connect() {
     console.error("Database connection failed:", error.message);
     throw error;
   }
-}
+};
 
-export default connect;
+// export default connect;
