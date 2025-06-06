@@ -14,7 +14,7 @@ const app = express();
 // CORS configuration
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://mellifluous-swan-470b44.netlify.app",
+  "https://cleaneaseservice.netlify.app",
 ];
 app.use(
   cors({
