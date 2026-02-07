@@ -1,6 +1,6 @@
 // generate OTP
-import otpGenerator from "otp-generator";
-const otpStore = { auth_otp: null };
+import otpGenerator from "otp-generator";  // this is to generate otp
+const otpStore = { auth_otp: null };  // creates simple in-memory store. 
 
 export async function localVariables(req, res, next) {
   try {
