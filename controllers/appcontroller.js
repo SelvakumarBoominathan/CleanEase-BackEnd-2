@@ -6,6 +6,7 @@ import ENV from "../config.js";
 import nodemailer from "nodemailer";
 import otpStore from "../middleware/auth.js";
 import userModel from "../models/userModel.js";
+import redisClient from "../middleware/redisClient.js";
 
 //middlewere to find user while loging in
 export async function verifyUser(req, res, next) {
@@ -43,7 +44,7 @@ export async function login(req, res) {
         username: user.username,
       },
       ENV.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "24h" },
     );
 
     return res.status(200).send({
@@ -156,24 +157,31 @@ export const registermail = async (req, res) => {
 // GET req to verifyOTP otp in user Obj
 // http://localhost:8000/api/verifyOTP
 export async function verifyOTP(req, res) {
-  const { otp } = req.body;
+  const { userId, otp } = req.body;
 
-  const storedOTP = otpStore.auth_otp;
+  // const storedOTP = otpStore.auth_otp;
+  const storedOTP = await redisClient.get(`otp:${userId}`); // Retrieve OTP from Redis
   const receivedOtp = String(otp);
 
   if (!storedOTP) {
     return res.status(400).send({ error: "OTP not generated." });
   }
 
-  //Comparing the OTP from req and stored variable in middleware
-  if (storedOTP === receivedOtp) {
-    //reset OTP value
-    otpStore.auth_otp = null;
-    req.app.locals.resetSession = true;
-    // console.log(req.app.locals.resetSession);
-
-    return res.status(201).send({ msg: "OTP verified!" });
+  if (storedOTP !== receivedOtp) {
+    return res.status(400).json({ error: "Invalid OTP" });
   }
+
+  //Comparing the OTP from req and stored variable in middleware
+  // if (storedOTP === receivedOtp) {
+  //   //reset OTP value
+  //   otpStore.auth_otp = null;
+  //   req.app.locals.resetSession = true;
+  //   // console.log(req.app.locals.resetSession);
+
+  await redisClient.del(`otp:${userId}`); // Delete OTP from Redis after verification
+
+  return res.status(200).send({ msg: "OTP verified!" });
+  // }
   return res.status(400).send({ error: "Invalid OTP." });
 }
 
@@ -226,7 +234,7 @@ export async function resetPassword(req, res) {
     // Update the user's password
     await UserModel.updateOne(
       { username: user.username },
-      { password: hashedPassword }
+      { password: hashedPassword },
     );
 
     return res.status(200).send({ msg: "Password updated successfully!" });
@@ -308,7 +316,7 @@ export const updateEmployee = async (req, res) => {
       req.body,
       {
         new: true,
-      }
+      },
     );
 
     if (!result) return res.status(404).send("Employee not found");
@@ -368,7 +376,7 @@ export const addrating = async (req, res) => {
           review: newReview,
         },
       },
-      { new: true } // This option returns the updated document
+      { new: true }, // This option returns the updated document
     );
 
     res.status(200).json(result);
@@ -454,7 +462,7 @@ export const removeBooking = async (req, res) => {
 
     // Remove the booking with the specified ID
     const updatedBookings = user.bookings.filter(
-      (booking) => booking._id.toString() !== bookingId
+      (booking) => booking._id.toString() !== bookingId,
     );
 
     user.bookings = updatedBookings;
