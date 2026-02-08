@@ -1,55 +1,127 @@
 import { Router } from "express";
 import * as controller from "../controllers/appcontroller.js";
-// import * as mailer from "../controllers/mailer.js";
 import { localVariables } from "../middleware/auth.js";
-// import otpStore from "../middleware/auth.js";
+import { validate, validateQuery } from "../middleware/validation.js";
+import { requireAuth } from "../middleware/jwtMiddleware.js";
+import {
+  authLimiter,
+  otpLimiter,
+  resetLimiter,
+} from "../middleware/rateLimiter.js";
 
 const router = Router();
 
-// Create or POST method
-router.route("/login").post(controller.verifyUser, controller.login); // Login to the app (first verify user exist in DB and then run login code).controller.verifyUser is a middleware
-router.route("/register").post(controller.register); // create a new user
-router.route("/registermail").post(localVariables, controller.registermail); // sending OTP to email
-router.route("/otpvalidation").post(controller.verifyOTP);
+/**
+ * AUTHENTICATION ROUTES
+ */
 
-// Update or PATCH method
-router.route("/resetPassword").patch(
-  // controller.verifyUser,
-  controller.createResetSession,
-  controller.resetPassword
-); // reset password
+// User Registration
+router
+  .route("/register")
+  .post(authLimiter, validate("register"), controller.register);
 
+// User Login
+router
+  .route("/login")
+  .post(
+    authLimiter,
+    controller.verifyUser,
+    validate("login"),
+    controller.login,
+  );
+
+// Send OTP to Email
+router
+  .route("/registermail")
+  .post(
+    otpLimiter,
+    localVariables,
+    validate("registermail"),
+    controller.registermail,
+  );
+
+// Verify OTP
+router
+  .route("/otpvalidation")
+  .post(otpLimiter, validate("verifyOTP"), controller.verifyOTP);
+
+// Reset Password
+router
+  .route("/resetPassword")
+  .patch(
+    resetLimiter,
+    controller.createResetSession,
+    validate("resetPassword"),
+    controller.resetPassword,
+  );
+
+// Authenticate User (verify token)
 router
   .route("/authenticate")
-  .post(controller.verifyUser, (req, res) => res.end()); //authenticate user (from client)
+  .post(controller.verifyUser, requireAuth, (req, res) =>
+    res.json({ success: true, msg: "User authenticated" }),
+  );
 
-router.route("/getbill").post(controller.getbill); // sample
+// Get Bill (placeholder)
+router.route("/getbill").post(controller.getbill);
 
-// router.route("/setpassword").post((req, res) => res.json("set password route"));
+// Get User by Username
+router.route("/user/:username").get(controller.getUser);
 
-// Read or GET method
-router.route("/user/:username").get(controller.getUser); // get the user details
+// Reset Session
+router.route("/ResetSession").get(controller.createResetSession);
 
-//First to verify user and then generate OTP. OTP variables will be generated using middleware
-// router
-// .route("/generateOTP")
-// .get(controller.verifyUser, localVariables, controller.generateOTP); // to generate random OTP
-// router.route("/verifyOTP").get(controller.verifyOTP); // verify generated OTP
-router.route("/ResetSession").get(controller.createResetSession); // creating session for pass update
+/**
+ * EMPLOYEE ROUTES
+ */
 
-// Deleta or DEL Method
+// Add Employee (requires authentication)
+router
+  .route("/addemployee")
+  .post(requireAuth, validate("addEmployee"), controller.addemployee);
 
-// router.route("/Registerpage").delete((req, res) => res.json("register route"));
+// Get All Employees (with pagination)
+router
+  .route("/employees")
+  .get(validateQuery("pagination"), controller.getEmployees);
 
-// APIs for EMPLOYEES
-router.route("/addemployee").post(controller.addemployee);
-router.route("/employees").get(controller.getEmployees);
-router.route("/deleteEmployee/:id").delete(controller.deleteEmployee);
-router.route("/updateEmployee/:id").put(controller.updateEmployee);
+// Get Single Employee by ID
 router.route("/employees/:id").get(controller.getSingleEmployee);
-//APIs for Review and Rating
-router.route("/rating").post(controller.addrating);
-router.route("/booking").post(controller.addBooking);
-router.route("/Cartpage").get(controller.getbookings);
-router.route("/removeBooking").delete(controller.removeBooking);
+
+// Update Employee (requires authentication)
+router
+  .route("/updateEmployee/:id")
+  .put(requireAuth, validate("updateEmployee"), controller.updateEmployee);
+
+// Delete Employee (requires authentication)
+router
+  .route("/deleteEmployee/:id")
+  .delete(requireAuth, controller.deleteEmployee);
+
+/**
+ * RATING AND REVIEW ROUTES
+ */
+
+// Add Rating and Review (requires authentication)
+router
+  .route("/rating")
+  .post(requireAuth, validate("addRating"), controller.addrating);
+
+/**
+ * BOOKING ROUTES
+ */
+
+// Add Booking (requires authentication)
+router
+  .route("/booking")
+  .post(requireAuth, validate("addBooking"), controller.addBooking);
+
+// Get User Bookings (requires authentication)
+router.route("/Cartpage").get(requireAuth, controller.getbookings);
+
+// Remove Booking (requires authentication)
+router
+  .route("/removeBooking")
+  .delete(requireAuth, validate("removeBooking"), controller.removeBooking);
+
 export default router;

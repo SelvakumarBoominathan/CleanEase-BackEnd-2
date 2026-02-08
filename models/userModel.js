@@ -1,38 +1,95 @@
 import mongoose from "mongoose";
+import config from "../config.js";
 
-const bookingSchema = new mongoose.Schema({
-  employeeName: String,
-  employeeImage: String,
-  city: String,
-  date: Date,
-  time: String,
-  bookedBy: String,
-});
+/**
+ * Booking Schema - Embedded in User
+ */
+const bookingSchema = new mongoose.Schema(
+  {
+    employeeName: {
+      type: String,
+      required: true,
+    },
+    employeeImage: {
+      type: String,
+      required: true,
+    },
+    city: {
+      type: String,
+      required: true,
+    },
+    date: {
+      type: Date,
+      required: true,
+    },
+    time: {
+      type: String,
+      required: true,
+    },
+    bookedBy: {
+      type: String,
+      required: true,
+    },
+  },
+  { _id: true, timestamps: true },
+);
 
-const userSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, "Please provide your name"],
+/**
+ * User Schema
+ */
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, "Please provide your name"],
+      trim: true,
+      minlength: 2,
+      maxlength: 100,
+    },
+    username: {
+      type: String,
+      required: [true, "Please provide a unique username"],
+      unique: true,
+      trim: true,
+      minlength: 3,
+      maxlength: 30,
+      index: true,
+    },
+    email: {
+      type: String,
+      required: [true, "Please provide your email"],
+      unique: true,
+      lowercase: true,
+      trim: true,
+      match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Please provide a valid email"],
+      index: true,
+    },
+    password: {
+      type: String,
+      required: [true, "Please provide a strong password"],
+      minlength: config.PASSWORD_MIN_LENGTH,
+      select: false,
+    },
+    bookings: {
+      type: [bookingSchema],
+      default: [],
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
-  username: {
-    type: String,
-    required: [true, "Please provide a unique Username"],
-    unique: true,
+  {
+    timestamps: true,
   },
-  email: {
-    type: String,
-    required: [true, "Please provide your Email"],
-    unique: true,
-  },
-  password: {
-    type: String,
-    required: [true, "Please provide a strong password"],
-  },
-  bookings: {
-    type: [bookingSchema],
-    default: [],
-  },
-});
+);
 
-// Export the model, ensuring it is not overwritten if it already exists
+// Create indexes for frequently queried fields
+userSchema.index({ username: 1 });
+userSchema.index({ email: 1 });
+userSchema.index({ createdAt: -1 });
+
+// Hash password middleware is handled in the service layer
+
+// Export the model
 export default mongoose.models.user || mongoose.model("user", userSchema);

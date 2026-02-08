@@ -1,3 +1,21 @@
 node_modules
 .env
 package-lock.json
+logs/
+*.log
+
+# Docker
+.dockerignore
+Dockerfile
+
+# OS
+.DS_Store
+.vscode
+.idea
+*.swp
+*.swo
+
+# Build
+dist/
+build/
+

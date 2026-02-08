@@ -2,474 +2,240 @@ import UserModel from "../models/userModel.js";
 import EmployeeModel from "../models/employeeModel.js";
 import bcrypt from "bcrypt";
 import Jwt from "jsonwebtoken";
-import ENV from "../config.js";
-import nodemailer from "nodemailer";
-import otpStore from "../middleware/auth.js";
-import userModel from "../models/userModel.js";
-import redisClient from "../middleware/redisClient.js";
+import config from "../config.js";
+import logger from "../middleware/logger.js";
+import { AppError, asyncHandler } from "../middleware/errorHandler.js";
+import { userService, bookingService } from "../services/userService.js";
+import { employeeService } from "../services/employeeService.js";
+import { emailValidator } from "../utils/validators.js";
 
-//middlewere to find user while loging in
+/**
+ * Middleware to verify user exists during login
+ */
 export async function verifyUser(req, res, next) {
   try {
     const { username } = req.method === "GET" ? req.query : req.body;
 
     const exist = await UserModel.findOne({ username });
-    if (!exist)
-      return res.status(404).send({ error: `User ${username} not Exist` });
+    if (!exist) {
+      return res.status(404).json({
+        success: false,
+        error: `User ${username} does not exist`,
+      });
+    }
     next();
   } catch (error) {
-    return res.status(500).send({ error: "Authentication Error" });
-  }
-}
-
-// POST req to login
-// http://localhost:8000/api/login
-export async function login(req, res) {
-  const { username, password } = req.body;
-
-  try {
-    const user = await UserModel.findOne({ username });
-    if (!user) {
-      return res.status(404).send({ error: "Username not found" });
-    }
-
-    const passwordCheck = await bcrypt.compare(password, user.password);
-    if (!passwordCheck) {
-      return res.status(400).send({ error: "Password does not match" });
-    }
-
-    // Create JWT (JSON Web Token)
-    const token = Jwt.sign(
-      {
-        username: user.username,
-      },
-      ENV.JWT_SECRET,
-      { expiresIn: "24h" },
-    );
-
-    return res.status(200).send({
-      msg: "Login Successful!",
-      username: user.username,
-      token,
+    logger.error("User verification error", { error: error.message });
+    return res.status(500).json({
+      success: false,
+      error: "Authentication error",
     });
-  } catch (error) {
-    console.error("Login error:", error); // Log the error for debugging
-    return res.status(500).send({ error: "Internal Server Error" });
   }
 }
 
-// To register new user
-// http://localhost:8000/api/register
-export async function register(req, res) {
-  try {
-    const { name, username, email, password } = req.body;
+/**
+ * User Registration
+ */
+export const register = asyncHandler(async (req, res) => {
+  const result = await userService.register(req.body);
+  res.status(201).json({ success: true, ...result });
+});
 
-    // Check if username or email exists
-    const [usernameCheck, emailCheck] = await Promise.all([
-      UserModel.findOne({ username }).exec(),
-      UserModel.findOne({ email }).exec(),
-    ]);
+/**
+ * User Login
+ */
+export const login = asyncHandler(async (req, res) => {
+  const result = await userService.login(req.body);
+  res.status(200).json({ success: true, ...result });
+});
 
-    if (usernameCheck) {
-      return res.status(400).send({ error: "Username already exists" });
-    }
+/**
+ * Send OTP via Email
+ */
+export const registermail = asyncHandler(async (req, res) => {
+  const { email, userId } = req.body;
 
-    if (emailCheck) {
-      return res.status(400).send({ error: "Email already exists" });
-    }
-
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create and save the new user
-    const newUser = new UserModel({
-      name,
-      username,
-      email,
-      password: hashedPassword,
-    });
-
-    await newUser.save();
-
-    return res.status(201).send({ msg: "User registered successfully." });
-  } catch (error) {
-    return res.status(500).send({ error: error.message });
+  // Validate email format
+  if (!emailValidator.isValid(email)) {
+    throw new AppError("Invalid email format", 400);
   }
-}
 
-// Post request for signup email -  sending OTP to Gmail for mail verification
-// http://localhost:8000/api/registermail
-export const registermail = async (req, res) => {
-  const { email } = req.body;
+  const result = await userService.sendOTP(email, userId);
 
-  try {
-    // Verify if email exists in the database
-    const user = await UserModel.findOne({ email });
-    if (!user) {
-      return res.status(404).send({ error: "Email not found" });
-    }
+  res.status(201).json({ success: true, ...result });
+});
 
-    //access OTP from middleware
-    const otp = req.otp || otpStore.auth_otp;
-
-    if (!otp) {
-      return res.status(400).send({ error: "OTP is not generated" });
-    }
-
-    const config = {
-      host: "smtp.gmail.com",
-      port: 587, // Use 465 for SSL or 587 for TLS
-      secure: false, // True for SSL, false for TLS
-      auth: {
-        user: ENV.Email,
-        pass: ENV.password,
-      },
-    };
-
-    const transporter = nodemailer.createTransport(config);
-
-    // Object to send mail
-    const message = {
-      from: `"CleanEase" <${ENV.Email}>`, // sender address
-      to: email, // list of receivers
-      subject: "OTP Verification", // Subject line
-      html: `<b>Your OTP is <h1>${otp}</h1></b>`, //html body
-    };
-
-    // Send mail
-    try {
-      const info = await transporter.sendMail(message);
-
-      return res.status(201).json({
-        user: user.username,
-        msg: "Mail Sent Successfully!",
-        info: info.messageId,
-        preview: nodemailer.getTestMessageUrl(info),
-      });
-    } catch (error) {
-      return res.status(500).json({ error: error.message });
-    }
-  } catch (error) {
-    return res.status(500).send({ error: error.message });
-  }
-};
-
-// GET req to verifyOTP otp in user Obj
-// http://localhost:8000/api/verifyOTP
-export async function verifyOTP(req, res) {
+/**
+ * Verify OTP
+ */
+export const verifyOTP = asyncHandler(async (req, res) => {
   const { userId, otp } = req.body;
 
-  // const storedOTP = otpStore.auth_otp;
-  const storedOTP = await redisClient.get(`otp:${userId}`); // Retrieve OTP from Redis
-  const receivedOtp = String(otp);
+  const result = await userService.verifyOTP(userId, otp);
 
-  if (!storedOTP) {
-    return res.status(400).send({ error: "OTP not generated." });
-  }
+  res.status(200).json({ success: true, ...result });
+});
 
-  if (storedOTP !== receivedOtp) {
-    return res.status(400).json({ error: "Invalid OTP" });
-  }
-
-  //Comparing the OTP from req and stored variable in middleware
-  // if (storedOTP === receivedOtp) {
-  //   //reset OTP value
-  //   otpStore.auth_otp = null;
-  //   req.app.locals.resetSession = true;
-  //   // console.log(req.app.locals.resetSession);
-
-  await redisClient.del(`otp:${userId}`); // Delete OTP from Redis after verification
-
-  return res.status(200).send({ msg: "OTP verified!" });
-  // }
-  return res.status(400).send({ error: "Invalid OTP." });
-}
-
-// GET req to login
-// http://localhost:8000/api/user/:username
-export async function getUser(req, res) {
+/**
+ * Get User by Username
+ */
+export const getUser = asyncHandler(async (req, res) => {
   const { username } = req.params;
-  try {
-    if (!username) return res.status(400).send({ error: "Invalid username!" });
 
-    const user = await UserModel.findOne({ username });
-
-    if (!user) return res.status(404).send({ error: "user not found" });
-
-    // Remove password from the user  (converting it to JSON to omit unnecessay data from mongoose)
-    const { password, ...rest } = Object.assign({}, user.toJSON());
-    return res.status(200).send(rest);
-  } catch (error) {
-    return res.status(500).send({ error: error.message });
+  if (!username) {
+    throw new AppError("Invalid username!", 400);
   }
-}
 
-// GET method for creating resetsession
-// http://localhost:8000/api/createResetSession
+  const user = await userService.getUserByUsername(username);
+
+  res.status(200).json({ success: true, user });
+});
+
+/**
+ * Create Reset Session
+ */
 export async function createResetSession(req, res, next) {
-  // console.log(req.app.locals.resetSession);
-  if (req.app.locals.resetSession) {
-    req.app.locals.resetSession = false; // this will create a reset session only once
-    // return res.status(201).send({ msg: "Access granted" });
+  try {
+    // For now, we'll let the flow continue
+    // The actual session is validated in resetPassword
     next();
-  } else {
-    return res.status(440).send({ error: "Session expired!" });
+  } catch (error) {
+    logger.error("Error in createResetSession", { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 }
 
-export async function resetPassword(req, res) {
-  try {
-    const { username, password } = req.body;
+/**
+ * Reset Password
+ */
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { username, password, userId } = req.body;
 
-    // Find user by username
-    const user = await UserModel.findOne({ username });
-    // console.log(user);
-    if (!user) {
-      return res.status(404).send({ error: "username not found" });
-    }
-
-    // Hash the new password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Update the user's password
-    await UserModel.updateOne(
-      { username: user.username },
-      { password: hashedPassword },
-    );
-
-    return res.status(200).send({ msg: "Password updated successfully!" });
-  } catch (error) {
-    return res.status(500).send({ error: error.message });
+  if (!userId) {
+    throw new AppError("User ID is required for password reset", 400);
   }
-}
 
-// http://localhost:8000/api/getbill
-export async function getbill(req, res) {
-  return res.status(201).send({ msg: "Get bill successfully!" });
-}
+  const result = await userService.resetPassword(username, password, userId);
 
-//EMPLOYEE APIs
+  res.status(200).json({ success: true, ...result });
+});
 
-export const addemployee = async (req, res) => {
-  try {
-    const newEmp = new EmployeeModel(req.body);
-    await newEmp.save();
-    res.status(201).json(newEmp);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
+/**
+ * Get Bill (placeholder endpoint)
+ */
+export const getbill = asyncHandler(async (req, res) => {
+  res.status(201).json({
+    success: true,
+    msg: "Get bill successfully!",
+  });
+});
 
-export const getEmployees = async (req, res) => {
-  try {
-    const employees = await EmployeeModel.find({});
-    res.status(200).json(employees);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
+/**
+ * EMPLOYEE ENDPOINTS
+ */
 
-// API to fetch employee by ID - get single employee
-export const getSingleEmployee = async (req, res) => {
-  try {
-    const { id } = req.params;
-    // Convert the id to a number
-    const employeeId = Number(id);
+/**
+ * Add Employee
+ */
+export const addemployee = asyncHandler(async (req, res) => {
+  const employee = await employeeService.addEmployee(req.body);
+  res.status(201).json({ success: true, employee });
+});
 
-    if (isNaN(employeeId)) {
-      return res.status(400).json({ message: "Invalid ID format" });
-    }
+/**
+ * Get All Employees with Pagination
+ */
+export const getEmployees = asyncHandler(async (req, res) => {
+  const { page = 1, limit = config.DEFAULT_PAGE_SIZE } = req.query;
 
-    const employee = await EmployeeModel.findOne({ id: employeeId });
+  const result = await employeeService.getEmployees(
+    parseInt(page, 10),
+    parseInt(limit, 10),
+  );
 
-    if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
-    }
+  res.status(200).json({ success: true, ...result });
+});
 
-    res.json(employee);
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
-  }
-};
+/**
+ * Get Single Employee by ID
+ */
+export const getSingleEmployee = asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-export const deleteEmployee = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await EmployeeModel.deleteOne({ id: parseInt(id, 10) });
+  const employee = await employeeService.getSingleEmployee(id);
 
-    if (result.deletedCount === 1) {
-      res.status(200).json({ message: "Employee deleted successfully" });
-    } else {
-      res.status(404).json({ message: "Employee not found" });
-    }
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
+  res.status(200).json({ success: true, employee });
+});
 
-export const updateEmployee = async (req, res) => {
-  try {
-    const { id } = req.params;
+/**
+ * Update Employee
+ */
+export const updateEmployee = asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-    const result = await EmployeeModel.findOneAndUpdate(
-      { id: parseInt(id, 10) },
-      req.body,
-      {
-        new: true,
-      },
-    );
+  const result = await employeeService.updateEmployee(id, req.body);
 
-    if (!result) return res.status(404).send("Employee not found");
+  res.status(200).json({ success: true, employee: result });
+});
 
-    res.json(result);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
+/**
+ * Delete Employee
+ */
+export const deleteEmployee = asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-export const addrating = async (req, res) => {
-  try {
-    const { rating, reviewtext, username, empID } = req.body;
+  const result = await employeeService.deleteEmployee(id);
 
-    // Find the employee by empID
-    const employee = await EmployeeModel.findOne({ id: parseInt(empID, 10) });
-    if (!employee) {
-      return res.status(404).send("Employee not found!");
-    }
+  res.status(200).json({ success: true, ...result });
+});
 
-    // const userExist = await EmployeeModel.findOne({
-    //   "review.name": username,
-    // });
+/**
+ * RATING AND REVIEW ENDPOINTS
+ */
 
-    // if (userExist) {
-    //   return res.status(409).send("You have already provided your review");
-    // }
+/**
+ * Add Rating and Review
+ */
+export const addrating = asyncHandler(async (req, res) => {
+  const { empID } = req.body;
 
-    const existingReview = employee.review.find((r) => r.name === username);
+  const result = await employeeService.addRating(empID, req.body);
 
-    if (existingReview) {
-      return res.status(409).send("User has already submitted a review.");
-    }
+  res.status(200).json({ success: true, employee: result });
+});
 
-    // Calculate the new average
-    const currentAvg = employee.rating.average;
-    const currentCount = employee.rating.count;
+/**
+ * BOOKING ENDPOINTS
+ */
 
-    const newCount = currentCount + 1;
-    const newAvg = (currentAvg * currentCount + rating) / newCount;
+/**
+ * Add Booking
+ */
+export const addBooking = asyncHandler(async (req, res) => {
+  const result = await employeeService.addBooking(req.body);
 
-    // Create the new review object
-    const newReview = {
-      name: username,
-      comments: reviewtext,
-    };
+  res.status(201).json({ success: true, ...result });
+});
 
-    // Update the employee document with the new average, count, and review
-    const result = await EmployeeModel.findOneAndUpdate(
-      { id: parseInt(empID, 10) }, // Use empID here
-      {
-        $set: {
-          "rating.average": newAvg,
-          "rating.count": newCount,
-        },
-        $push: {
-          review: newReview,
-        },
-      },
-      { new: true }, // This option returns the updated document
-    );
+/**
+ * Get Bookings for User
+ */
+export const getbookings = asyncHandler(async (req, res) => {
+  const username = req.username;
 
-    res.status(200).json(result);
-  } catch (error) {
-    console.error("Error updating employee rating and review: ", error);
-    res.status(500).send("Error updating employee rating and review");
-  }
-};
+  const result = await bookingService.getBookings(username);
 
-//update booking details to employee modal
-export const addBooking = async (req, res) => {
-  try {
-    const { employeeId, username, time, date } = req.body;
+  res.status(200).json({ success: true, ...result });
+});
 
-    const numericEmpID = parseInt(employeeId, 10);
-    // Find the employee by employeeId
-    const employee = await EmployeeModel.findOne({ id: numericEmpID });
-    if (!employee) {
-      return res.status(404).json({ message: "Employee not found." });
-    }
+/**
+ * Remove Booking
+ */
+export const removeBooking = asyncHandler(async (req, res) => {
+  const username = req.username;
+  const { bookingId } = req.body;
 
-    // Find the user by userId
-    const user = await userModel.findOne({ username });
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
+  const result = await bookingService.removeBooking(username, bookingId);
 
-    // Create the booking object
-    const bookingDetails = {
-      employeeName: employee.name,
-      employeeImage: employee.image,
-      city: employee.city,
-      date: new Date(date),
-      time,
-      bookedBy: username,
-    };
-
-    //Add booking details to employees booking array.
-    employee.bookings.push(bookingDetails);
-    await employee.save();
-
-    //add booking details to user bookings
-    user.bookings.push(bookingDetails);
-    await user.save();
-
-    return res.status(201).json({ message: "Booking created successfully!" });
-  } catch (error) {
-    console.error("Error in creating booking : ", error);
-    return res
-      .status(500)
-      .json({ message: "Internal server error.", error: error.message });
-  }
-};
-
-export const getbookings = async (req, res) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ message: "Unauthorized" });
-
-    const decoded = Jwt.verify(token, process.env.JWT_SECRET);
-    const username = decoded.username;
-
-    const user = await userModel.findOne({ username }).select("bookings");
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    res.json({ bookings: user.bookings });
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching bookings!", error });
-  }
-};
-
-export const removeBooking = async (req, res) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ message: "Unauthorized" });
-
-    const decoded = Jwt.verify(token, process.env.JWT_SECRET);
-    const username = decoded.username;
-    const { bookingId } = req.body;
-
-    const user = await userModel.findOne({ username });
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    // Remove the booking with the specified ID
-    const updatedBookings = user.bookings.filter(
-      (booking) => booking._id.toString() !== bookingId,
-    );
-
-    user.bookings = updatedBookings;
-    await user.save();
-
-    res.json({ message: "Booking removed successfully!" });
-  } catch (error) {
-    res.status(500).json({ message: "Error removing booking!", error });
-  }
-};
+  res.status(200).json({ success: true, ...result });
+});

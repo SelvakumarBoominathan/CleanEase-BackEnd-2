@@ -29,42 +29,34 @@
 ### **Files and Their Roles**
 
 1. **`appcontroller.js`**
-
    - Handles core business logic for the application.
    - Manages requests related to booking services, user data, and employee operations.
 
 2. **`connection.js`**
-
    - Sets up and manages the connection to the MongoDB database.
    - Ensures proper error handling for database connectivity.
 
 3. **`auth.js`**
-
    - Manages user authentication and authorization.
    - Implements secure login, signup, and token verification processes.
 
 4. **`employeeModel.js` and `userModel.js`**
-
    - **`employeeModel.js`**: Defines the schema for storing employee details such as name, category, city, availability, and rating.
    - **`userModel.js`**: Defines the schema for storing user details like name, email, password, and booking history.
 
 5. **`route.js`**
-
    - Centralizes all application routes.
    - Routes API requests to their respective controllers.
 
 6. **`.env` file**
-
    - Stores environment variables such as database URLs, API keys, and secret keys.
    - Ensures sensitive data remains secure and outside the codebase.
 
 7. **`.gitignore`**
-
    - Specifies files and folders to be ignored by Git.
    - Ensures sensitive files like `.env` are not pushed to version control.
 
 8. **`config.js`**
-
    - Contains configuration settings for the application.
    - Includes database settings, server ports, and environment-dependent variables.
 
@@ -74,12 +66,57 @@
 
 ---
 
-## **Setup Instructions**
+## **🐳 Quick Start with Docker** (Recommended ✅)
+
+### **Prerequisites**
+
+- Docker Desktop installed: https://www.docker.com/products/docker-desktop
+
+### **One-Command Setup**
+
+**Windows:**
+
+```bash
+./start-docker.bat
+```
+
+**Mac/Linux:**
+
+```bash
+chmod +x start-docker.sh
+./start-docker.sh
+```
+
+Or manually:
+
+```bash
+docker-compose up -d
+```
+
+✨ All services (Backend, MongoDB, Redis) start automatically!
+
+- ✅ Backend API: http://localhost:8000
+- ✅ MongoDB: localhost:27017
+- ✅ Redis: localhost:6379
+
+**Benefits:**
+
+- ✓ No installation hassles
+- ✓ Consistent environments
+- ✓ Easy dependency management
+- ✓ Production-like setup
+
+📖 **[Detailed Docker Guide →](DOCKER_QUICKREF.md)** | **[Full Docker Docs →](DOCKER_SETUP.md)**
+
+---
+
+## **Setup Instructions** (Local Development Alternative)
 
 ### **Prerequisites**
 
 - Node.js and npm installed.
-- MongoDB installed or access to a cloud MongoDB instance.
+- MongoDB installed or access to a cloud MongoDB instance (e.g., MongoDB Atlas).
+- Redis server running locally.
 - Git installed.
 
 ### **Steps to Run the Backend**
@@ -88,7 +125,7 @@
 
    ```bash
    git clone <repository-url>
-   cd <repository-folder>
+   cd CleanEase-BackEnd-2
    ```
 
 2. **Install Dependencies**:
@@ -99,21 +136,39 @@
 
 3. **Setup Environment Variables**:
 
-   - Create a `.env` file in the root directory.
-   - Add the following variables:
-     ```env
-     PORT=8000
-     ATLAS_URI=<your-mongo-database-url>
-     JWT_SECRET=<your-jwt-secret>
-     EMAIL=<Your Email>
-     PASSWORD=<Password>
-     ```
-
-4. **Run the Server**:
    ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+4. **Start Services** (locally):
+
+   ```bash
+   # Terminal 1: Start MongoDB
+   mongod
+
+   # Terminal 2: Start Redis
+   redis-server
+
+   # Terminal 3: Start Backend
    npm start
    ```
-   The server will start on the specified port (default: 5000).
+
+**Verify:**
+
+```bash
+# Check if server is running
+curl http://localhost:8000
+
+# Expected response:
+# {"success":true,"message":"CleanEase Backend Server Running"}
+```
+
+---
+
+## **Setup Instructions** (Original)
+
+### **Prerequisites**
 
 ---
 

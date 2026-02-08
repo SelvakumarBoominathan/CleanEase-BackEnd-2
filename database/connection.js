@@ -1,19 +1,27 @@
-// export default connect;
 import mongoose from "mongoose";
-import ENV from "../config.js"; // Access environment variable for URI
+import config from "../config.js";
+import logger from "../middleware/logger.js";
 
+/**
+ * Connect to MongoDB
+ */
 const connect = async () => {
   try {
-    mongoose.set("strictQuery", true); // Set strictQuery option
-    // console.log("Connecting to MongoDB...");
+    mongoose.set("strictQuery", true);
 
-    // Connect to the MongoDB Atlas database using the URI from ENV
-    const db = await mongoose.connect(ENV.ATLAS_URI); // Use the URI from the config
+    logger.info("Connecting to MongoDB...", {
+      uri: config.ATLAS_URI.substring(0, 30) + "...",
+    });
 
-    // console.log("Database connected successfully");
+    const db = await mongoose.connect(config.ATLAS_URI);
+
+    logger.info("✅ Database connected successfully");
+
     return db;
   } catch (error) {
-    console.error("Database connection failed:", error.message);
+    logger.error("❌ Database connection failed", {
+      error: error.message,
+    });
     throw error;
   }
 };
